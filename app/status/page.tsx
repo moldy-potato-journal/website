@@ -3,8 +3,6 @@ import { JournalHeader } from "@/components/layout/journal-header"
 import { RecentArticlesSection } from "@/components/status/recent-articles-section"
 import { loadArticlesPageData, loadHomePageData } from "@/lib/content-loader"
 
-export const dynamic = "force-dynamic"
-
 export default async function StatusPage() {
     const [homePageData, articlesPageData] = await Promise.all([
         loadHomePageData(),

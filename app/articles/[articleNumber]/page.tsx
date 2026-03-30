@@ -14,9 +14,16 @@ import {
     CardHeader,
 } from "@/components/ui/card"
 import { toArticleCode } from "@/lib/article-number"
-import { loadArticlePageData } from "@/lib/content-loader"
+import {
+    loadArticlePageData,
+    loadArticleStaticParams,
+} from "@/lib/content-loader"
 
-export const dynamic = "force-dynamic"
+export const dynamicParams = false
+
+export async function generateStaticParams() {
+    return loadArticleStaticParams()
+}
 
 type ArticlePageProps = {
     params: Promise<{

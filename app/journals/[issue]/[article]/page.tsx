@@ -12,9 +12,15 @@ import {
     CardFooter,
     CardHeader,
 } from "@/components/ui/card"
-import { loadJournalIssueArticlePageData } from "@/lib/content-loader"
+import {
+    loadJournalEntryStaticParams,
+    loadJournalIssueArticlePageData,
+} from "@/lib/content-loader"
+export const dynamicParams = false
 
-export const dynamic = "force-dynamic"
+export async function generateStaticParams() {
+    return loadJournalEntryStaticParams()
+}
 
 type JournalIssueArticlePageProps = {
     params: Promise<{

@@ -221,7 +221,7 @@ async function fetchJson<T>(pathName: string): Promise<T> {
     }
 
     const response = await fetch(toRawContentUrl(pathName), {
-        next: { revalidate: 300 },
+        cache: "force-cache",
         headers: {
             Accept: "application/json",
         },
@@ -245,7 +245,7 @@ async function fetchText(pathName: string): Promise<string> {
     }
 
     const response = await fetch(toRawContentUrl(pathName), {
-        next: { revalidate: 300 },
+        cache: "force-cache",
         headers: {
             Accept: "text/plain",
         },
@@ -279,6 +279,38 @@ export async function loadInformationContent(): Promise<SiteInformation> {
         )
     } catch {
         return fallbackContentInformation
+    }
+}
+
+async function loadArticleRecords() {
+    const articleIndex = await fetchJson<ArticleIndex>(
+        CONTENT_ROOT_FILES.articlesIndex
+    )
+    const articleRecords = await Promise.all(
+        articleIndex.items.map((articleNumber) =>
+            fetchJson<RawArticleRecord>(
+                getArticleMetadataPath(articleNumber)
+            ).then(normalizeArticleRecord)
+        )
+    )
+
+    return {
+        articleIndex,
+        articleRecords,
+    }
+}
+
+async function loadJournalResources() {
+    const journalIndex = await fetchJson<JournalIndex>(
+        CONTENT_ROOT_FILES.journalsIndex
+    )
+    const journalResources = await Promise.all(
+        journalIndex.items.map((issue) => loadJournalIssueResources(issue))
+    )
+
+    return {
+        journalIndex,
+        journalResources,
     }
 }
 
@@ -839,19 +871,10 @@ export async function loadArticlesPageData(): Promise<ArticlesPageData> {
             throw new Error(`Unsupported content version: ${rootIndex.version}`)
         }
 
-        const articleIndex = await fetchJson<ArticleIndex>(
-            CONTENT_ROOT_FILES.articlesIndex
-        )
+        const { articleRecords } = await loadArticleRecords()
         const articleCategoryIndex = await fetchJson<ArticleCategoryIndex>(
             getArticleCategoryIndexPath()
         ).catch(() => undefined)
-        const articleRecords = await Promise.all(
-            articleIndex.items.map((articleNumber) =>
-                fetchJson<RawArticleRecord>(
-                    getArticleMetadataPath(articleNumber)
-                ).then(normalizeArticleRecord)
-            )
-        )
 
         const publishedArticles = sortArticlesByPublicationDate(
             articleRecords.filter((article) => article.status === "published")
@@ -909,10 +932,7 @@ export async function loadArticlesPageData(): Promise<ArticlesPageData> {
 
 export async function loadJournalsPageData(): Promise<JournalsPageData> {
     try {
-        const { journalIndex } = await loadContentIndexes()
-        const journalResources = await Promise.all(
-            journalIndex.items.map((issue) => loadJournalIssueResources(issue))
-        )
+        const { journalResources } = await loadJournalResources()
 
         const publishedJournals = sortJournalsByPublicationDate(
             journalResources
@@ -948,6 +968,56 @@ export async function loadJournalsPageData(): Promise<JournalsPageData> {
             latestJournal: fallbackJournal,
             journals: [fallbackJournal],
         }
+    }
+}
+
+export async function loadArticleStaticParams(): Promise<
+    Array<{ articleNumber: string }>
+> {
+    try {
+        const { articleIndex } = await loadArticleRecords()
+
+        return articleIndex.items.map((articleNumber) => ({
+            articleNumber,
+        }))
+    } catch {
+        return fallbackArticles.map((_, index) => ({
+            articleNumber: formatFallbackArticleNumber(index),
+        }))
+    }
+}
+
+export async function loadJournalIssueStaticParams(): Promise<
+    Array<{ issue: string }>
+> {
+    try {
+        const { journalIndex } = await loadJournalResources()
+
+        return journalIndex.items.map((issue) => ({
+            issue,
+        }))
+    } catch {
+        return [{ issue: FALLBACK_JOURNAL_ISSUE }]
+    }
+}
+
+export async function loadJournalEntryStaticParams(): Promise<
+    Array<{ issue: string; article: string }>
+> {
+    try {
+        const { journalResources } = await loadJournalResources()
+
+        return journalResources.flatMap(({ journal, issueIndex }) =>
+            issueIndex.items.map((entry) => ({
+                issue: journal.issue,
+                article: entry.entryNumber,
+            }))
+        )
+    } catch {
+        return FALLBACK_JOURNAL_ENTRY_POINTERS.map((entry) => ({
+            issue: FALLBACK_JOURNAL_ISSUE,
+            article: entry.entryNumber,
+        }))
     }
 }
 

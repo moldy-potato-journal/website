@@ -6,8 +6,6 @@ import {
     loadJournalsPageData,
 } from "@/lib/content-loader"
 
-export const dynamic = "force-dynamic"
-
 export default async function JournalsPage() {
     const journalsPageData = await loadJournalsPageData()
     const latestIssuePageData = await loadJournalIssuePageData(

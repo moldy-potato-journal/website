@@ -2,8 +2,6 @@ import { ArticleNotFoundSection } from "@/components/articles/article-not-found-
 import { JournalHeader } from "@/components/layout/journal-header"
 import { loadArticleNotFoundPageData } from "@/lib/content-loader"
 
-export const dynamic = "force-dynamic"
-
 export default async function ArticleNotFound() {
     const {
         pageDescription,

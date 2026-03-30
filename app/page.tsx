@@ -4,8 +4,6 @@ import { BriefsSection } from "@/components/home/briefs-section"
 import { LatestJournalSection } from "@/components/home/latest-journal-section"
 import { JournalHeader } from "@/components/layout/journal-header"
 
-export const dynamic = "force-dynamic"
-
 export default async function Page() {
     const homePageData = await loadHomePageData()
 
