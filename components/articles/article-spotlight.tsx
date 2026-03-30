@@ -45,7 +45,7 @@ export function ArticleSpotlight({
                                     {article.title}
                                 </h3>
                                 <p className="mt-1 text-sm leading-7 text-muted-foreground">
-                                    {article.summary}
+                                    {article.description}
                                 </p>
                                 <p className="mt-2 font-mono text-[11px] text-muted-foreground">
                                     {article.contentType.toUpperCase()}

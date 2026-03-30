@@ -69,7 +69,7 @@ export function ArticlesSection({
                             </CardTitle>
                             <Separator />
                             <CardDescription className="text-sm leading-7">
-                                {article.summary}
+                                {article.description}
                             </CardDescription>
                         </CardHeader>
                         <CardFooter className="pt-0">
@@ -104,7 +104,7 @@ export function ArticlesSection({
                                     </CardTitle>
                                     <Separator />
                                     <CardDescription className="text-sm leading-7">
-                                        {article.summary}
+                                        {article.description}
                                     </CardDescription>
                                 </CardHeader>
                                 <CardFooter className="pt-0">
@@ -143,7 +143,7 @@ export function ArticlesSection({
                                     </CardTitle>
                                     <Separator />
                                     <CardDescription className="text-sm leading-7">
-                                        {article.summary}
+                                        {article.description}
                                     </CardDescription>
                                 </CardHeader>
                                 <CardFooter className="pt-0">

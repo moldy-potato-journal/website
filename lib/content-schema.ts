@@ -87,7 +87,8 @@ export type ArticleRecord = {
     id: string
     articleNumber: string
     title: string
-    summary: string
+    description: string
+    abstract: string
     category: string
     status: "draft" | "published"
     publishDate?: string

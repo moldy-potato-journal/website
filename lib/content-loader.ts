@@ -1,3 +1,6 @@
+import { access, readFile } from "node:fs/promises"
+import path from "node:path"
+
 import {
     type ArticleCategoryIndex,
     type ArticleIndex,
@@ -55,7 +58,7 @@ export type HomeArticle = {
     id: string
     articleNumber: string
     title: string
-    summary: string
+    description: string
     category: string
     href: string
     contentType: "markdown" | "pdf"
@@ -96,6 +99,7 @@ export type ArticlesPageData = {
     description: string
     categoryPageDescription: string
     missingCategoryDescription: string
+    recentArticles: HomeArticle[]
     hottestArticles: HomeArticle[]
     latestArticle: HomeArticle
     latestArticleAbstract: string
@@ -115,6 +119,7 @@ export type ArticlesPageData = {
 export type ArticlePageData = {
     siteTitle: string
     article: HomeArticle & {
+        abstract: string
         authors: string[]
         publishDate?: string
         tags: string[]
@@ -172,16 +177,50 @@ export type JournalIssueArticlePageData = {
 
 export type SiteInformation = InformationContent
 
+type RawArticleRecord = Omit<ArticleRecord, "description" | "abstract"> & {
+    description?: string
+    abstract?: string
+    summary?: string
+}
+
 function normalizePath(path: string) {
     return path.replace(/^\.\//, "")
 }
 
-function toRawContentUrl(path: string) {
-    return getContentRawUrl(normalizePath(path))
+const LOCAL_CONTENT_ROOT = path.join(process.cwd(), "content-sample")
+
+function isDevelopmentMode() {
+    return process.env.NODE_ENV === "development"
 }
 
-async function fetchJson<T>(path: string): Promise<T> {
-    const response = await fetch(toRawContentUrl(path), {
+async function hasLocalContentFile(pathName: string) {
+    try {
+        await access(path.join(LOCAL_CONTENT_ROOT, normalizePath(pathName)))
+        return true
+    } catch {
+        return false
+    }
+}
+
+function toRawContentUrl(pathName: string) {
+    if (isDevelopmentMode()) {
+        return `/api/content/${normalizePath(pathName)}`
+    }
+
+    return getContentRawUrl(normalizePath(pathName))
+}
+
+async function fetchJson<T>(pathName: string): Promise<T> {
+    if (isDevelopmentMode() && (await hasLocalContentFile(pathName))) {
+        const fileContents = await readFile(
+            path.join(LOCAL_CONTENT_ROOT, normalizePath(pathName)),
+            "utf8"
+        )
+
+        return JSON.parse(fileContents) as T
+    }
+
+    const response = await fetch(toRawContentUrl(pathName), {
         next: { revalidate: 300 },
         headers: {
             Accept: "application/json",
@@ -190,15 +229,22 @@ async function fetchJson<T>(path: string): Promise<T> {
 
     if (!response.ok) {
         throw new Error(
-            `Failed to fetch content at ${path}: ${response.status}`
+            `Failed to fetch content at ${pathName}: ${response.status}`
         )
     }
 
     return response.json() as Promise<T>
 }
 
-async function fetchText(path: string): Promise<string> {
-    const response = await fetch(toRawContentUrl(path), {
+async function fetchText(pathName: string): Promise<string> {
+    if (isDevelopmentMode() && (await hasLocalContentFile(pathName))) {
+        return readFile(
+            path.join(LOCAL_CONTENT_ROOT, normalizePath(pathName)),
+            "utf8"
+        )
+    }
+
+    const response = await fetch(toRawContentUrl(pathName), {
         next: { revalidate: 300 },
         headers: {
             Accept: "text/plain",
@@ -207,7 +253,7 @@ async function fetchText(path: string): Promise<string> {
 
     if (!response.ok) {
         throw new Error(
-            `Failed to fetch content at ${path}: ${response.status}`
+            `Failed to fetch content at ${pathName}: ${response.status}`
         )
     }
 
@@ -266,6 +312,15 @@ function getJournalMetadataPath(issue: string) {
 
 function getJournalEntryPdfPath(issue: string, entryNumber: string) {
     return `journals/${issue}/${entryNumber}.pdf`
+}
+
+function normalizeArticleRecord(article: RawArticleRecord): ArticleRecord {
+    return {
+        ...article,
+        description: article.description ?? article.summary ?? "",
+        abstract:
+            article.abstract ?? article.summary ?? article.description ?? "",
+    }
 }
 
 function formatFallbackArticleNumber(index: number) {
@@ -360,7 +415,7 @@ function getFallbackHomePageData(): HomePageData {
             id: article.articleNumber,
             articleNumber: article.articleNumber,
             title: article.title,
-            summary: article.summary,
+            description: article.description,
             category: article.category,
             href: `/articles/${article.articleNumber}`,
             contentType: article.contentType,
@@ -377,7 +432,7 @@ function toHomeArticle(article: ArticleRecord): HomeArticle {
         id: article.id,
         articleNumber: article.articleNumber,
         title: article.title,
-        summary: article.summary,
+        description: article.description,
         category: article.category,
         href: `/articles/${article.articleNumber}`,
         contentType: article.content.type,
@@ -540,9 +595,9 @@ export async function loadHomePageData(): Promise<HomePageData> {
             ),
             Promise.all(
                 articleIndex.items.map((articleNumber) =>
-                    fetchJson<ArticleRecord>(
+                    fetchJson<RawArticleRecord>(
                         getArticleMetadataPath(articleNumber)
-                    )
+                    ).then(normalizeArticleRecord)
                 )
             ),
         ])
@@ -576,18 +631,9 @@ export async function loadHomePageData(): Promise<HomePageData> {
             await loadJournalIssueResources(featuredIssue)
         const featuredJournal = featuredJournalResource.journal
 
-        const featuredArticlePointers =
-            rootIndex.homepage.featuredArticleIds.filter((articleId) =>
-                articleIndex.items.includes(articleId)
-            )
-
-        const featuredArticles = await Promise.all(
-            featuredArticlePointers.map((articleNumber) =>
-                fetchJson<ArticleRecord>(getArticleMetadataPath(articleNumber))
-            )
-        )
-        const sortedFeaturedArticles =
-            sortArticlesByPublicationDate(featuredArticles)
+        const latestArticles = sortArticlesByPublicationDate(
+            publishedArticles
+        ).slice(0, 6)
 
         return {
             title: rootIndex.homepage.title,
@@ -638,7 +684,7 @@ export async function loadHomePageData(): Promise<HomePageData> {
                 title: staticCopy.homepage.standaloneArticles.title,
                 description: staticCopy.homepage.standaloneArticles.description,
             },
-            articles: sortedFeaturedArticles.map((article) => ({
+            articles: latestArticles.map((article) => ({
                 ...toHomeArticle(article),
             })),
         }
@@ -649,6 +695,7 @@ export async function loadHomePageData(): Promise<HomePageData> {
 
 function getFallbackArticlesPageData(): ArticlesPageData {
     const home = getFallbackHomePageData()
+    const sortedFallbackArticles = sortFallbackArticlesByPublishDate()
     const hottestArticles = home.articles.slice(0, 2)
     const latestArticle = home.articles[0]
     const groupedMap = new Map<string, HomeArticle[]>()
@@ -673,9 +720,10 @@ function getFallbackArticlesPageData(): ArticlesPageData {
             staticCopy.articles.selectedCategoryDescription,
         missingCategoryDescription:
             staticCopy.articles.missingCategoryDescription,
+        recentArticles: home.articles.slice(0, 6),
         hottestArticles,
         latestArticle,
-        latestArticleAbstract: latestArticle.summary,
+        latestArticleAbstract: sortedFallbackArticles[0]?.abstract ?? "",
         hotArticlesTitle: staticCopy.articles.spotlight.hotArticlesTitle,
         categoriesInformation: {
             sectionDescription:
@@ -799,7 +847,9 @@ export async function loadArticlesPageData(): Promise<ArticlesPageData> {
         ).catch(() => undefined)
         const articleRecords = await Promise.all(
             articleIndex.items.map((articleNumber) =>
-                fetchJson<ArticleRecord>(getArticleMetadataPath(articleNumber))
+                fetchJson<RawArticleRecord>(
+                    getArticleMetadataPath(articleNumber)
+                ).then(normalizeArticleRecord)
             )
         )
 
@@ -832,9 +882,10 @@ export async function loadArticlesPageData(): Promise<ArticlesPageData> {
                 staticCopy.articles.selectedCategoryDescription,
             missingCategoryDescription:
                 staticCopy.articles.missingCategoryDescription,
+            recentArticles: publishedArticles.slice(0, 6).map(toHomeArticle),
             hottestArticles,
             latestArticle: toHomeArticle(latestArticle),
-            latestArticleAbstract: latestArticle.summary,
+            latestArticleAbstract: latestArticle.abstract,
             hotArticlesTitle: staticCopy.articles.spotlight.hotArticlesTitle,
             categoriesInformation: {
                 sectionDescription:
@@ -995,7 +1046,9 @@ function getFallbackArticlePageData(
                 id: "26-01",
                 articleNumber,
                 title: "Against clean restoration",
-                summary:
+                description:
+                    "A short argument for leaving visible damage, noise, and material history in the frame.",
+                abstract:
                     "A short argument for leaving visible damage, noise, and material history in the frame.",
                 category: "Film Analysis",
                 href: `/articles/${articleNumber}`,
@@ -1016,7 +1069,9 @@ function getFallbackArticlePageData(
                 id: "26-02",
                 articleNumber,
                 title: "The corridor shot as student cinema theology",
-                summary:
+                description:
+                    "On why low-budget filmmakers keep returning to hallways, thresholds, and fluorescent suspense.",
+                abstract:
                     "On why low-budget filmmakers keep returning to hallways, thresholds, and fluorescent suspense.",
                 category: "Student Film",
                 href: `/articles/${articleNumber}`,
@@ -1036,7 +1091,9 @@ function getFallbackArticlePageData(
                 id: "26-03",
                 articleNumber,
                 title: "Viewing diary: five rainy screenings",
-                summary:
+                description:
+                    "Fragments on atmosphere, boredom, weather, and the accidental rhythms of programming.",
+                abstract:
                     "Fragments on atmosphere, boredom, weather, and the accidental rhythms of programming.",
                 category: "Film Analysis",
                 href: `/articles/${articleNumber}`,
@@ -1057,7 +1114,9 @@ function getFallbackArticlePageData(
                 id: "26-04",
                 articleNumber,
                 title: "The tripod as moral problem in the first-year short",
-                summary:
+                description:
+                    "A note on why static framing in student productions often signals anxiety rather than control.",
+                abstract:
                     "A note on why static framing in student productions often signals anxiety rather than control.",
                 category: "Student Film",
                 href: `/articles/${articleNumber}`,
@@ -1078,7 +1137,9 @@ function getFallbackArticlePageData(
                 id: "26-05",
                 articleNumber,
                 title: "Cafeteria realism and the mid-budget campus feature",
-                summary:
+                description:
+                    "How institutional interiors become an accidental style in films made with borrowed locations.",
+                abstract:
                     "How institutional interiors become an accidental style in films made with borrowed locations.",
                 category: "Student Film",
                 href: `/articles/${articleNumber}`,
@@ -1099,7 +1160,9 @@ function getFallbackArticlePageData(
                 id: "26-06",
                 articleNumber,
                 title: "Why the rehearsal take sometimes belongs in the final cut",
-                summary:
+                description:
+                    "On rough delivery, unfinished timing, and the documentary pressure of performance before polish.",
+                abstract:
                     "On rough delivery, unfinished timing, and the documentary pressure of performance before polish.",
                 category: "Student Film",
                 href: `/articles/${articleNumber}`,
@@ -1120,7 +1183,9 @@ function getFallbackArticlePageData(
                 id: "26-07",
                 articleNumber,
                 title: "Projection booth notes after the late campus screening",
-                summary:
+                description:
+                    "A small record of lamp heat, misthreading, and the strange authority of whoever stays after the audience leaves.",
+                abstract:
                     "A small record of lamp heat, misthreading, and the strange authority of whoever stays after the audience leaves.",
                 category: "Exhibition Notes",
                 href: `/articles/${articleNumber}`,
@@ -1141,7 +1206,9 @@ function getFallbackArticlePageData(
                 id: "26-08",
                 articleNumber,
                 title: "Hiss, room tone, and the ethics of cleaned dialogue",
-                summary:
+                description:
+                    "Why over-cleaned student audio can erase the environment that made a scene believable in the first place.",
+                abstract:
                     "Why over-cleaned student audio can erase the environment that made a scene believable in the first place.",
                 category: "Sound Studies",
                 href: `/articles/${articleNumber}`,
@@ -1162,7 +1229,9 @@ function getFallbackArticlePageData(
                 id: "26-09",
                 articleNumber,
                 title: "Box labels, mildew, and the politics of minor preservation",
-                summary:
+                description:
+                    "On handwritten tape labels, damp shelving, and the practical labour behind keeping non-canonical film culture legible.",
+                abstract:
                     "On handwritten tape labels, damp shelving, and the practical labour behind keeping non-canonical film culture legible.",
                 category: "Archive Notes",
                 href: `/articles/${articleNumber}`,
@@ -1183,7 +1252,9 @@ function getFallbackArticlePageData(
                 id: "26-10",
                 articleNumber,
                 title: "Festival mornings and the first-badge feature",
-                summary:
+                description:
+                    "A note on exhausted premieres, apologetic Q-and-As, and the ambition that clings to low-budget debuts.",
+                abstract:
                     "A note on exhausted premieres, apologetic Q-and-As, and the ambition that clings to low-budget debuts.",
                 category: "Festival Notes",
                 href: `/articles/${articleNumber}`,
@@ -1204,7 +1275,9 @@ function getFallbackArticlePageData(
                 id: "26-11",
                 articleNumber,
                 title: "Camcorder sunsets and the family film as accidental cinema",
-                summary:
+                description:
+                    "How domestic recordings turn weather, waiting, and repetition into forms of unplanned style.",
+                abstract:
                     "How domestic recordings turn weather, waiting, and repetition into forms of unplanned style.",
                 category: "Amateur Media",
                 href: `/articles/${articleNumber}`,
@@ -1225,7 +1298,9 @@ function getFallbackArticlePageData(
                 id: "26-12",
                 articleNumber,
                 title: "When the actor outruns the frame",
-                summary:
+                description:
+                    "A short piece on performances that exceed the camera setup built to contain them.",
+                abstract:
                     "A short piece on performances that exceed the camera setup built to contain them.",
                 category: "Performance",
                 href: `/articles/${articleNumber}`,
@@ -1246,7 +1321,9 @@ function getFallbackArticlePageData(
                 id: "26-13",
                 articleNumber,
                 title: "Notebook from the under-attended weekday screening",
-                summary:
+                description:
+                    "Sparse attendance, loud radiators, and the peculiar intimacy of watching a film with six strangers.",
+                abstract:
                     "Sparse attendance, loud radiators, and the peculiar intimacy of watching a film with six strangers.",
                 category: "Screening Reports",
                 href: `/articles/${articleNumber}`,
@@ -1267,7 +1344,9 @@ function getFallbackArticlePageData(
                 id: "26-14",
                 articleNumber,
                 title: "Video essay without voiceover: a note on arrangement",
-                summary:
+                description:
+                    "What happens when critical montage has to think through cuts, rhythm, and juxtaposition instead of explanatory speech.",
+                abstract:
                     "What happens when critical montage has to think through cuts, rhythm, and juxtaposition instead of explanatory speech.",
                 category: "Video Essay",
                 href: `/articles/${articleNumber}`,
@@ -1288,7 +1367,9 @@ function getFallbackArticlePageData(
                 id: "26-15",
                 articleNumber,
                 title: "After the projector jam: notes from an interrupted matinee",
-                summary:
+                description:
+                    "A small account of delay, apology, and the audience behaviour that emerges when a screening briefly stops being a screening.",
+                abstract:
                     "A small account of delay, apology, and the audience behaviour that emerges when a screening briefly stops being a screening.",
                 category: "Exhibition Notes",
                 href: `/articles/${articleNumber}`,
@@ -1309,7 +1390,9 @@ function getFallbackArticlePageData(
                 id: "26-16",
                 articleNumber,
                 title: "Lav mic rustle and the fantasy of invisible recording",
-                summary:
+                description:
+                    "On clothing noise, close bodies, and the way low-budget dialogue recording reveals more proximity than the image does.",
+                abstract:
                     "On clothing noise, close bodies, and the way low-budget dialogue recording reveals more proximity than the image does.",
                 category: "Sound Studies",
                 href: `/articles/${articleNumber}`,
@@ -1329,7 +1412,9 @@ function getFallbackArticlePageData(
                 id: "26-17",
                 articleNumber,
                 title: "Festival catalogue adjectives and the language of minor prestige",
-                summary:
+                description:
+                    "A reading of how small festivals describe difficult films when they want seriousness without scaring off the audience.",
+                abstract:
                     "A reading of how small festivals describe difficult films when they want seriousness without scaring off the audience.",
                 category: "Festival Notes",
                 href: `/articles/${articleNumber}`,
@@ -1350,7 +1435,9 @@ function getFallbackArticlePageData(
                 id: "26-18",
                 articleNumber,
                 title: "Second screening notebook: ten people, one broken subtitle file",
-                summary:
+                description:
+                    "A brief record of awkward pauses, improvised translation, and the collective patience of a room that chooses to stay.",
+                abstract:
                     "A brief record of awkward pauses, improvised translation, and the collective patience of a room that chooses to stay.",
                 category: "Screening Reports",
                 href: `/articles/${articleNumber}`,
@@ -1371,7 +1458,9 @@ function getFallbackArticlePageData(
                 id: "26-19",
                 articleNumber,
                 title: "MiniDV birthdays and the accidental theory of zooming in too late",
-                summary:
+                description:
+                    "How domestic camera mistakes become a style of lateness, hesitation, and emotional correction.",
+                abstract:
                     "How domestic camera mistakes become a style of lateness, hesitation, and emotional correction.",
                 category: "Amateur Media",
                 href: `/articles/${articleNumber}`,
@@ -1392,7 +1481,9 @@ function getFallbackArticlePageData(
                 id: "26-20",
                 articleNumber,
                 title: "Fog machine notes for the impossible warehouse scene",
-                summary:
+                description:
+                    "On borrowed industrial space, cheap atmosphere, and the technical labour required to make thin resources look deliberate.",
+                abstract:
                     "On borrowed industrial space, cheap atmosphere, and the technical labour required to make thin resources look deliberate.",
                 category: "Production Notes",
                 href: `/articles/${articleNumber}`,
@@ -1430,9 +1521,9 @@ export async function loadArticlePageData(
             return null
         }
 
-        const article = await fetchJson<ArticleRecord>(
+        const article = await fetchJson<RawArticleRecord>(
             getArticleMetadataPath(articleNumber)
-        )
+        ).then(normalizeArticleRecord)
         const homeArticle = toHomeArticle(article)
         const rawContentUrl = toRawContentUrl(article.content.path)
 
@@ -1445,6 +1536,7 @@ export async function loadArticlePageData(
             siteTitle: rootIndex.homepage.title,
             article: {
                 ...homeArticle,
+                abstract: article.abstract,
                 authors: article.authors,
                 publishDate: article.publishDate,
                 tags: article.tags,

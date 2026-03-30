@@ -44,7 +44,7 @@ function estimateCategoryCardHeight(
         return (
             total +
             Math.ceil(article.title.length / 28) * 1.6 +
-            Math.ceil(article.summary.length / 72) * 1.2
+            Math.ceil(article.description.length / 72) * 1.2
         )
     }, 0)
 
@@ -198,7 +198,7 @@ function CategoryPreviewCard({
                                 {article.title}
                             </CardTitle>
                             <CardDescription className="mt-2 text-sm leading-7">
-                                {article.summary}
+                                {article.description}
                             </CardDescription>
                             <p className="mt-2 font-mono text-[11px] text-muted-foreground">
                                 {article.contentType.toUpperCase()}
@@ -344,7 +344,7 @@ export function ArticleCategoryColumns({
                                                     {article.title}
                                                 </CardTitle>
                                                 <CardDescription className="mt-2 text-sm leading-7">
-                                                    {article.summary}
+                                                    {article.description}
                                                 </CardDescription>
                                                 <p className="mt-2 font-mono text-[11px] text-muted-foreground">
                                                     {article.contentType.toUpperCase()}

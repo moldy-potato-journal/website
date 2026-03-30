@@ -14,6 +14,7 @@ import type { HomeBrief } from "@/lib/content-loader"
 import { SectionLabel } from "@/components/home/section-label"
 
 type BriefsSectionProps = {
+    sectionLabel?: string
     title: string
     description: string
     briefs: HomeBrief[]
@@ -33,6 +34,7 @@ type BriefsSectionProps = {
 }
 
 export function BriefsSection({
+    sectionLabel = "Front Matter",
     title,
     description,
     briefs,
@@ -46,7 +48,7 @@ export function BriefsSection({
         >
             <Card className="rounded-none border-border bg-background shadow-none">
                 <CardHeader className="gap-3 px-6 pt-6 pb-4">
-                    <SectionLabel>Front Matter</SectionLabel>
+                    <SectionLabel>{sectionLabel}</SectionLabel>
                     <CardTitle className="font-heading text-3xl leading-tight sm:text-4xl">
                         {title}
                     </CardTitle>

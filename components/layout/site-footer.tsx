@@ -76,6 +76,12 @@ export function SiteFooter() {
                         </p>
                         <div className="flex flex-wrap gap-x-5 gap-y-1">
                             <Link
+                                href="/status"
+                                className="transition-colors hover:text-foreground"
+                            >
+                                Status
+                            </Link>
+                            <Link
                                 href="/submit"
                                 className="transition-colors hover:text-foreground"
                             >

@@ -80,7 +80,7 @@ export function ArticleNotFoundSection({
                                     {article.title}
                                 </CardTitle>
                                 <CardDescription className="text-sm leading-7">
-                                    {article.summary}
+                                    {article.description}
                                 </CardDescription>
                                 <Separator />
                                 <p className="font-mono text-[11px] text-muted-foreground">

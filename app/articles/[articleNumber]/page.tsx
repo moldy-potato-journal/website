@@ -39,7 +39,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
             <div className="mx-auto flex w-full max-w-7xl flex-col gap-8">
                 <JournalHeader
                     title={article.title}
-                    description={article.summary}
+                    description={article.abstract}
                     links={[
                         { href: "/", label: "Home" },
                         { href: "/articles", label: "Articles" },
