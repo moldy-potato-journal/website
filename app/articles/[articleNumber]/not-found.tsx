@@ -5,22 +5,37 @@ import { loadArticleNotFoundPageData } from "@/lib/content-loader"
 export const dynamic = "force-dynamic"
 
 export default async function ArticleNotFound() {
-  const { recommendedArticles } = await loadArticleNotFoundPageData()
+    const {
+        pageDescription,
+        headerTitle,
+        headerDescription,
+        recommendationsTitle,
+        recommendationsDescription,
+        recommendedArticles,
+    } = await loadArticleNotFoundPageData()
 
-  return (
-    <main className="min-h-svh px-5 py-6 sm:px-8 sm:py-8">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-8">
-        <JournalHeader
-          title="Articles"
-          description="Single articles published outside the journal issue, arranged for browsing, reading, and citation."
-          links={[
-            { href: "/", label: "Home" },
-            { href: "/articles", label: "Articles" },
-          ]}
-        />
+    return (
+        <main className="min-h-svh px-5 py-6 sm:px-8 sm:py-8">
+            <div className="mx-auto flex w-full max-w-7xl flex-col gap-8">
+                <JournalHeader
+                    title="Articles"
+                    description={pageDescription}
+                    links={[
+                        { href: "/", label: "Home" },
+                        { href: "/articles", label: "Articles" },
+                        { href: "/journals", label: "Journals" },
+                        { href: "/submit", label: "Submit" },
+                    ]}
+                />
 
-        <ArticleNotFoundSection recommendedArticles={recommendedArticles} />
-      </div>
-    </main>
-  )
+                <ArticleNotFoundSection
+                    headerTitle={headerTitle}
+                    headerDescription={headerDescription}
+                    recommendationsTitle={recommendationsTitle}
+                    recommendationsDescription={recommendationsDescription}
+                    recommendedArticles={recommendedArticles}
+                />
+            </div>
+        </main>
+    )
 }
