@@ -9,7 +9,7 @@ This content system is intentionally narrow: the GitHub content repository store
 - The root `index.json` is the only required entry point.
 - Directory nodes use `index.json`.
 - Individual content records use `metadata.json`.
-- The root `index.json` contains basic homepage-facing metadata and pointers to deeper content indexes.
+- The root `index.json` contains only homepage-facing metadata.
 
 ## What Lives In Code
 
@@ -34,7 +34,8 @@ Only publication data:
 - article index
 - individual journal records
 - individual article records
-- article source files, where each article chooses either Markdown or PDF
+- standalone article source files, where each article chooses either Markdown or PDF
+- issue PDF files for journal releases
 
 ## Root Index Contract
 
@@ -45,10 +46,10 @@ The root `index.json` should contain:
 - `homepage.description`
 - `homepage.featuredJournalId`
 - `homepage.featuredArticleIds`
-- `sections.journals.path`
-- `sections.articles.path`
 
-The root file is not meant to duplicate the full site configuration. It acts as the homepage entry node plus a router to deeper content nodes.
+The root file is not meant to duplicate the full site configuration. It acts as
+the homepage entry node only. Deeper indexes are loaded from fixed conventional
+paths.
 
 ## Publishing Workflow
 
@@ -61,8 +62,8 @@ The root file is not meant to duplicate the full site configuration. It acts as 
 ### Journal issue
 
 1. A contributor opens a PR against the content repository.
-2. Accepted issue-bound work can be merged into a branch such as `journal/spring-issue-01`.
-3. The issue editor updates `journals/<issue-handle>/metadata.json`.
+2. Accepted issue-bound work can be merged into a branch such as `journal/26-3`.
+3. The issue editor updates `journals/<issue>/metadata.json`.
 4. When the issue is complete, that branch merges back into `main`.
 
 ## Suggested Repository Shape
@@ -72,13 +73,16 @@ index.json
 articles/
   index.json
   index.category.json
-  article-handle/
+  26-01/
     metadata.json
     body.md or paper.pdf
 journals/
   index.json
-  issue-handle/
+  26-3/
+    index.json
     metadata.json
+    1.pdf
+    2.pdf
 ```
 
 ## Why This Shape
@@ -88,6 +92,68 @@ journals/
 - easy to fetch from Next.js
 - easy to migrate later if richer tooling is needed
 
+## Journal Issue Numbering
+
+Each journal record should include an `issue` field.
+
+Format:
+
+- `yy-issueNumber`
+- `yy` is the last two digits of the publication year
+- `issueNumber` can stay unpadded
+
+Examples:
+
+- `26-1`
+- `26-3`
+
+The public issue code shown in the interface is prefixed as:
+
+- `MPJ-26-3`
+
+The journal route omits the prefix and uses the shorter issue segment:
+
+- `/journals/26-3`
+- `/journals/26-3/13`
+
+In the second route, `13` means the thirteenth article inside that issue rather
+than the standalone article number.
+
+## Journal Entry Semantics
+
+Standalone articles and journal entries are separate systems.
+
+- standalone articles live under `articles/`
+- journal entries live inside a journal record under `journals/<issue>/metadata.json`
+- journal entries are indexed by `journals/<issue>/index.json`
+- journal entries do not point back to standalone article records
+- journal entries are always read through the issue PDF
+- journal entry routes point to a numbered entry inside the issue, not to an `articleNumber`
+
+Each journal issue folder should include:
+
+- `metadata.json`
+- `index.json`
+- one PDF per entry, stored directly in the journal folder as `[number].pdf`
+
+The issue `index.json` should include only `items`.
+
+Each journal entry in that issue index should include:
+
+- `entryNumber`
+- `title`
+- `summary`
+- `authors`
+- `tags`
+- `pages.start`
+- `pages.end`
+
+The frontend should treat `/journals/26-3/13` as:
+
+- issue `26-3`
+- entry `13`
+- a dedicated PDF file for that journal entry
+
 ## Article Content Type
 
 Each article record should use a single `content` object.
@@ -95,7 +161,7 @@ Each article record should use a single `content` object.
 - `content.type` is either `markdown` or `pdf`
 - `content.path` points to the chosen source file
 
-This means one article chooses one primary source representation. The intended frontend behavior is:
+This means one article chooses one primary source representation. The intended frontend behaviour is:
 
 - render Markdown inline when `type` is `markdown`
 - offer a PDF-oriented reader or download action when `type` is `pdf`
@@ -122,8 +188,9 @@ Examples:
 For article records, `id` should be the same value as `articleNumber`.
 
 - article metadata uses `id === articleNumber`
-- article list indexes bind `id`, `articleNumber`, and `path`
+- article list indexes store article numbers only
 - no extra article handle is required
+- article folder names should also use `articleNumber`
 
 The resulting semantics are:
 
@@ -134,11 +201,36 @@ The resulting semantics are:
 ## Article Categories
 
 If you want categories to be explicit in the content graph rather than inferred at render time,
-`articles/index.json` can point to a dedicated category index.
+use the conventional `articles/index.category.json`.
 
-- `articles/index.json` may include `categoriesPath`
 - `articles/index.category.json` stores the ordered category list
 - each category entry declares its `title` and `articleIds`
 
 This lets the application render one card per declared category, in a stable order,
 without depending on incidental grouping logic.
+
+## Article Folder Naming
+
+Article directories should use `articleNumber` as the folder name.
+
+Examples:
+
+- `articles/26-01/metadata.json`
+- `articles/26-02/paper.pdf`
+
+This keeps the repository easier to scan and avoids tying filesystem structure
+to article titles.
+
+## Conventional Paths
+
+Paths to the next node should not be stored redundantly inside indexes when the
+filesystem structure is already fixed.
+
+- root content index: `index.json`
+- article index: `articles/index.json`
+- article category index: `articles/index.category.json`
+- article metadata: `articles/<articleNumber>/metadata.json`
+- journal index: `journals/index.json`
+- journal metadata: `journals/<issue>/metadata.json`
+- journal issue index: `journals/<issue>/index.json`
+- journal entry PDF: `journals/<issue>/<entryNumber>.pdf`
