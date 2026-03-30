@@ -32,7 +32,9 @@ export default async function JournalsPage() {
                     <JournalIssueContents
                         journal={latestIssuePageData.journal}
                         entries={latestIssuePageData.entries}
-                        contentsDescription={journalsPageData.contentsDescription}
+                        contentsDescription={
+                            journalsPageData.contentsDescription
+                        }
                     />
                 ) : null}
 

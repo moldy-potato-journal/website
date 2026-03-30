@@ -228,7 +228,9 @@ async function loadRootIndex() {
 
 export async function loadInformationContent(): Promise<SiteInformation> {
     try {
-        return await fetchJson<InformationContent>(CONTENT_ROOT_FILES.information)
+        return await fetchJson<InformationContent>(
+            CONTENT_ROOT_FILES.information
+        )
     } catch {
         return fallbackContentInformation
     }
@@ -667,7 +669,8 @@ function getFallbackArticlesPageData(): ArticlesPageData {
     return {
         title: home.title,
         description: staticCopy.articles.pageDescription,
-        categoryPageDescription: staticCopy.articles.selectedCategoryDescription,
+        categoryPageDescription:
+            staticCopy.articles.selectedCategoryDescription,
         missingCategoryDescription:
             staticCopy.articles.missingCategoryDescription,
         hottestArticles,
@@ -675,7 +678,8 @@ function getFallbackArticlesPageData(): ArticlesPageData {
         latestArticleAbstract: latestArticle.summary,
         hotArticlesTitle: staticCopy.articles.spotlight.hotArticlesTitle,
         categoriesInformation: {
-            sectionDescription: staticCopy.articles.categories.sectionDescription,
+            sectionDescription:
+                staticCopy.articles.categories.sectionDescription,
             unavailableTitle: staticCopy.articles.categories.unavailableTitle,
             unavailableDescription:
                 staticCopy.articles.categories.unavailableDescription,
@@ -824,7 +828,8 @@ export async function loadArticlesPageData(): Promise<ArticlesPageData> {
         return {
             title: rootIndex.homepage.title,
             description: staticCopy.articles.pageDescription,
-            categoryPageDescription: staticCopy.articles.selectedCategoryDescription,
+            categoryPageDescription:
+                staticCopy.articles.selectedCategoryDescription,
             missingCategoryDescription:
                 staticCopy.articles.missingCategoryDescription,
             hottestArticles,

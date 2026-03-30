@@ -63,7 +63,7 @@ export function SiteFooter() {
                                 </span>{" "}
                                 and{" "}
                                 <span className="font-mono">
-                                {CONTENT_DISCUSSION_CATEGORIES.journal}
+                                    {CONTENT_DISCUSSION_CATEGORIES.journal}
                                 </span>
                                 , {staticCopy.footer.discussionsDescription}
                             </p>
@@ -71,7 +71,9 @@ export function SiteFooter() {
                     </div>
 
                     <div className="flex flex-col gap-2 border-t border-border pt-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-                        <p className={"font-bold"}>Moldy Potato Film Journal · {siteConfig.year}</p>
+                        <p className={"font-bold"}>
+                            Moldy Potato Film Journal · {siteConfig.year}
+                        </p>
                         <div className="flex flex-wrap gap-x-5 gap-y-1">
                             <Link
                                 href="/submit"

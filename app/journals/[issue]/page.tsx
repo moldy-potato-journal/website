@@ -40,7 +40,9 @@ export default async function JournalIssuePage({
                 <JournalIssueContents
                     journal={issuePageData.journal}
                     entries={issuePageData.entries}
-                    contentsDescription={staticCopy.journals.contentsDescription}
+                    contentsDescription={
+                        staticCopy.journals.contentsDescription
+                    }
                 />
             </div>
         </main>
