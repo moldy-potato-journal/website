@@ -7,8 +7,6 @@ import {
     loadJournalIssueStaticParams,
 } from "@/lib/content-loader"
 import { staticCopy } from "@/lib/home-content"
-export const dynamicParams = false
-
 export async function generateStaticParams() {
     return loadJournalIssueStaticParams()
 }

@@ -203,10 +203,6 @@ async function hasLocalContentFile(pathName: string) {
 }
 
 function toRawContentUrl(pathName: string) {
-    if (isDevelopmentMode()) {
-        return `/api/content/${normalizePath(pathName)}`
-    }
-
     return getContentRawUrl(normalizePath(pathName))
 }
 
