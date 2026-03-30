@@ -1,0 +1,19 @@
+name: Actionlint
+
+on:
+    pull_request:
+    push:
+        branches:
+            - main
+
+jobs:
+    actionlint:
+        name: actionlint
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v5
+
+            - name: Run actionlint
+              uses: rhysd/actionlint@v1

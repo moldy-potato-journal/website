@@ -40,3 +40,6 @@ jobs:
 
             - name: Run build
               run: pnpm build
+
+            - name: Check formatting
+              run: pnpm exec prettier --check .
