@@ -36,4 +36,4 @@ The publication data lives in the content repository. The main things in that sy
 - `articles/`
 - `journals/`
 
-If you want the more technical version of all this, see [CONTRIBUTING.md](/Users/suzixuan/我的/Experimental%20Project/lowest-film-journal/CONTRIBUTING.md) and [CONTENT_SYSTEM.md](/Users/suzixuan/我的/Experimental%20Project/lowest-film-journal/CONTENT_SYSTEM.md).
+If you want the more technical version of all this, see [CONTRIBUTING.md](./CONTRIBUTING.md) and [CONTENT_SYSTEM.md](./CONTENT_SYSTEM.md).
