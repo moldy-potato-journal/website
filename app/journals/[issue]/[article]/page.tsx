@@ -13,20 +13,8 @@ import {
     CardHeader,
 } from "@/components/ui/card"
 import {
-    loadJournalEntryStaticParams,
     loadJournalIssueArticlePageData,
 } from "@/lib/content-loader"
-
-export const dynamicParams = false
-
-export async function generateStaticParams({
-    params,
-}: {
-    params: { issue: string; article: string }
-}) {
-    const { issue } = params
-    return loadJournalEntryStaticParams(issue)
-}
 
 type JournalIssueArticlePageProps = {
     params: Promise<{

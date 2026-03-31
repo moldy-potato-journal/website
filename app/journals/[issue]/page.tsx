@@ -2,17 +2,8 @@ import { notFound } from "next/navigation"
 
 import { JournalIssueContents } from "@/components/journals/journal-issue-contents"
 import { JournalHeader } from "@/components/layout/journal-header"
-import {
-    loadJournalIssuePageData,
-    loadJournalIssueStaticParams,
-} from "@/lib/content-loader"
+import { loadJournalIssuePageData } from "@/lib/content-loader"
 import { staticCopy } from "@/lib/home-content"
-
-export const dynamicParams = false
-
-export async function generateStaticParams() {
-    return loadJournalIssueStaticParams()
-}
 
 type JournalIssuePageProps = {
     params: Promise<{
