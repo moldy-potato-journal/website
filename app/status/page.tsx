@@ -1,5 +1,6 @@
 import { BriefsSection } from "@/components/home/briefs-section"
 import { JournalHeader } from "@/components/layout/journal-header"
+import { NoContentState } from "@/components/layout/no-content-state"
 import { RecentArticlesSection } from "@/components/status/recent-articles-section"
 import { loadArticlesPageData, loadHomePageData } from "@/lib/content-loader"
 
@@ -23,18 +24,24 @@ export default async function StatusPage() {
                     ]}
                 />
 
-                <BriefsSection
-                    sectionLabel="Status"
-                    title={homePageData.frontMatter.title}
-                    description={homePageData.frontMatter.description}
-                    briefs={homePageData.briefs}
-                    submission={homePageData.submission}
-                    archiveTotals={homePageData.archiveTotals}
-                />
+                {homePageData && articlesPageData ? (
+                    <>
+                        <BriefsSection
+                            sectionLabel="Status"
+                            title={homePageData.frontMatter.title}
+                            description={homePageData.frontMatter.description}
+                            briefs={homePageData.briefs}
+                            submission={homePageData.submission}
+                            archiveTotals={homePageData.archiveTotals}
+                        />
 
-                <RecentArticlesSection
-                    articles={articlesPageData.recentArticles}
-                />
+                        <RecentArticlesSection
+                            articles={articlesPageData.recentArticles}
+                        />
+                    </>
+                ) : (
+                    <NoContentState description="Status content could not be loaded from the configured source." />
+                )}
             </div>
         </main>
     )

@@ -24,17 +24,11 @@ import {
     isValidJournalIssue,
     toJournalIssueCode,
 } from "@/lib/journal-issue"
-import {
-    briefs as fallbackBriefs,
-    contentInformation as fallbackContentInformation,
-    staticCopy,
-    standaloneArticles as fallbackArticles,
-} from "@/lib/home-content"
+import { staticCopy } from "@/lib/home-content"
 import {
     compareArticleNumbers,
     isValidArticleNumber,
 } from "@/lib/article-number"
-import { siteConfig } from "@/lib/site"
 
 export type HomeBrief = {
     label: string
@@ -269,13 +263,7 @@ async function loadRootIndex() {
 }
 
 export async function loadInformationContent(): Promise<SiteInformation> {
-    try {
-        return await fetchJson<InformationContent>(
-            CONTENT_ROOT_FILES.information
-        )
-    } catch {
-        return fallbackContentInformation
-    }
+    return fetchJson<InformationContent>(CONTENT_ROOT_FILES.information)
 }
 
 async function loadArticleRecords() {
@@ -351,31 +339,6 @@ function normalizeArticleRecord(article: RawArticleRecord): ArticleRecord {
     }
 }
 
-function formatFallbackArticleNumber(index: number) {
-    return `26-${String(index + 1).padStart(2, "0")}`
-}
-
-function sortFallbackArticlesByPublishDate() {
-    return fallbackArticles
-        .map((article, index) => ({
-            ...article,
-            articleNumber: formatFallbackArticleNumber(index),
-        }))
-        .sort((left, right) => {
-            const publishDateDifference =
-                Date.parse(right.publishDate) - Date.parse(left.publishDate)
-
-            if (publishDateDifference !== 0) {
-                return publishDateDifference
-            }
-
-            return compareArticleNumbers(
-                left.articleNumber,
-                right.articleNumber
-            )
-        })
-}
-
 function sortJournalsByPublicationDate<
     T extends { publishDate?: string; issue: string },
 >(items: T[]) {
@@ -389,66 +352,6 @@ function sortJournalsByPublicationDate<
 
         return compareJournalIssues(right.issue, left.issue)
     })
-}
-
-function getFallbackHomePageData(): HomePageData {
-    const sortedFallbackArticles = sortFallbackArticlesByPublishDate()
-    const fallbackIssue = "26-3"
-    const information = fallbackContentInformation
-
-    return {
-        title: siteConfig.name,
-        description: siteConfig.description,
-        frontMatter: {
-            title: staticCopy.homepage.frontMatter.title,
-            description: staticCopy.homepage.frontMatter.description,
-        },
-        briefs: fallbackBriefs.map((brief) => ({ ...brief })),
-        submission: {
-            title: information.homepage.frontMatter.submission.title,
-            body: information.homepage.frontMatter.submission.body,
-            repoUrl: CONTENT_REPOSITORY.url,
-            branchPrefix: CONTENT_BRANCH_POLICY.submissionBranchPrefix,
-            submitHref: `${CONTENT_REPOSITORY.url}/compare`,
-            guidelinesHref: CONTENT_REPOSITORY.url,
-        },
-        archiveTotals: {
-            standaloneArticles: fallbackArticles.length,
-            journalIssues: 1,
-            journalArticles: 3,
-        },
-        latestJournal: {
-            id: "MPJ-26-3",
-            issue: fallbackIssue,
-            issueCode: toJournalIssueCode(fallbackIssue),
-            title: "Issue 3",
-            issueLabel: toJournalIssueCode(fallbackIssue),
-            summary:
-                "A first issue on film rot, campus screenings, and late-night notebook criticism.",
-            href: `/journals/${fallbackIssue}`,
-            archiveHref: "/journals",
-            entries: [
-                "Against clean restoration",
-                "The corridor shot as student cinema theology",
-                "Viewing diary: five rainy screenings",
-            ],
-        },
-        latestJournalContentsDescription:
-            staticCopy.homepage.latestJournal.contentsDescription,
-        articlesSection: {
-            title: staticCopy.homepage.standaloneArticles.title,
-            description: staticCopy.homepage.standaloneArticles.description,
-        },
-        articles: sortedFallbackArticles.map((article) => ({
-            id: article.articleNumber,
-            articleNumber: article.articleNumber,
-            title: article.title,
-            description: article.description,
-            category: article.category,
-            href: `/articles/${article.articleNumber}`,
-            contentType: article.contentType,
-        })),
-    }
 }
 
 function toHomeArticle(article: ArticleRecord): HomeArticle {
@@ -600,7 +503,7 @@ function buildBriefs(
     ]
 }
 
-export async function loadHomePageData(): Promise<HomePageData> {
+export async function loadHomePageData(): Promise<HomePageData | null> {
     try {
         const [rootIndex, information] = await Promise.all([
             fetchJson<RootContentIndex>(CONTENT_ROOT_FILES.index),
@@ -717,147 +620,11 @@ export async function loadHomePageData(): Promise<HomePageData> {
             })),
         }
     } catch {
-        return getFallbackHomePageData()
-    }
-}
-
-function getFallbackArticlesPageData(): ArticlesPageData {
-    const home = getFallbackHomePageData()
-    const sortedFallbackArticles = sortFallbackArticlesByPublishDate()
-    const hottestArticles = home.articles.slice(0, 2)
-    const latestArticle = home.articles[0]
-    const groupedMap = new Map<string, HomeArticle[]>()
-
-    for (const article of home.articles) {
-        const currentItems = groupedMap.get(article.category) ?? []
-        currentItems.push(article)
-        groupedMap.set(article.category, currentItems)
-    }
-
-    const groupedArticles = Array.from(groupedMap.entries()).map(
-        ([category, items]) => ({
-            category,
-            items,
-        })
-    )
-
-    return {
-        title: home.title,
-        description: staticCopy.articles.pageDescription,
-        categoryPageDescription:
-            staticCopy.articles.selectedCategoryDescription,
-        missingCategoryDescription:
-            staticCopy.articles.missingCategoryDescription,
-        recentArticles: home.articles.slice(0, 6),
-        hottestArticles,
-        latestArticle,
-        latestArticleAbstract: sortedFallbackArticles[0]?.abstract ?? "",
-        hotArticlesTitle: staticCopy.articles.spotlight.hotArticlesTitle,
-        categoriesInformation: {
-            sectionDescription:
-                staticCopy.articles.categories.sectionDescription,
-            unavailableTitle: staticCopy.articles.categories.unavailableTitle,
-            unavailableDescription:
-                staticCopy.articles.categories.unavailableDescription,
-            categoryViewDescription:
-                staticCopy.articles.categories.categoryViewDescription,
-        },
-        groupedArticles,
-    }
-}
-
-const FALLBACK_JOURNAL_ISSUE = "26-3"
-const FALLBACK_JOURNAL_ENTRY_POINTERS: JournalEntryPointer[] = [
-    {
-        entryNumber: "1",
-        title: "Against clean restoration",
-        summary:
-            "A short argument for leaving visible damage, noise, and material history in the frame.",
-        authors: ["Editorial Desk"],
-        tags: ["restoration", "materiality", "criticism"],
-        pages: { start: 1, end: 6 },
-    },
-    {
-        entryNumber: "2",
-        title: "The corridor shot as student cinema theology",
-        summary:
-            "On why low-budget filmmakers keep returning to hallways, thresholds, and fluorescent suspense.",
-        authors: ["Editorial Desk"],
-        tags: ["student cinema", "space", "mise-en-scene"],
-        pages: { start: 7, end: 12 },
-    },
-    {
-        entryNumber: "3",
-        title: "Viewing diary: five rainy screenings",
-        summary:
-            "Fragments on atmosphere, boredom, weather, and the accidental rhythms of programming.",
-        authors: ["Editorial Desk"],
-        tags: ["viewing diary", "programming", "criticism"],
-        pages: { start: 13, end: 18 },
-    },
-] as const
-
-function getFallbackJournalEntries(): JournalIssueEntry[] {
-    return FALLBACK_JOURNAL_ENTRY_POINTERS.map((entry, index) =>
-        toJournalIssueEntry(entry, FALLBACK_JOURNAL_ISSUE, index)
-    )
-}
-
-function getFallbackJournalIssuePageData(
-    issue: string
-): JournalIssuePageData | null {
-    if (issue !== FALLBACK_JOURNAL_ISSUE) {
         return null
     }
-
-    const entries = getFallbackJournalEntries()
-
-    return {
-        siteTitle: siteConfig.name,
-        journal: {
-            ...getFallbackHomePageData().latestJournal,
-            publishDate: "2026-03-30",
-            discussionUrl: undefined,
-            articleCount: entries.length,
-        },
-        entries,
-    }
 }
 
-function getFallbackJournalIssueArticlePageData(
-    issue: string,
-    articleEntry: string
-): JournalIssueArticlePageData | null {
-    const issuePageData = getFallbackJournalIssuePageData(issue)
-
-    if (!issuePageData) {
-        return null
-    }
-
-    const entryIndex = Number(articleEntry)
-
-    if (!Number.isInteger(entryIndex) || entryIndex < 1) {
-        return null
-    }
-
-    const entry = issuePageData.entries[entryIndex - 1]
-
-    if (!entry) {
-        return null
-    }
-
-    return {
-        siteTitle: siteConfig.name,
-        journal: issuePageData.journal,
-        entry,
-        journalArticlePdfUrl: getContentRawUrl(
-            getJournalEntryPdfPath(FALLBACK_JOURNAL_ISSUE, entry.entryNumber)
-        ),
-        journalArticlePdfViewerUrl: `${getContentRawUrl(getJournalEntryPdfPath(FALLBACK_JOURNAL_ISSUE, entry.entryNumber))}#page=1`,
-    }
-}
-
-export async function loadArticlesPageData(): Promise<ArticlesPageData> {
+export async function loadArticlesPageData(): Promise<ArticlesPageData | null> {
     try {
         const rootIndex = await fetchJson<RootContentIndex>(
             CONTENT_ROOT_FILES.index
@@ -922,11 +689,11 @@ export async function loadArticlesPageData(): Promise<ArticlesPageData> {
             ),
         }
     } catch {
-        return getFallbackArticlesPageData()
+        return null
     }
 }
 
-export async function loadJournalsPageData(): Promise<JournalsPageData> {
+export async function loadJournalsPageData(): Promise<JournalsPageData | null> {
     try {
         const { journalResources } = await loadJournalResources()
 
@@ -956,14 +723,7 @@ export async function loadJournalsPageData(): Promise<JournalsPageData> {
             journals,
         }
     } catch {
-        const fallbackJournal = getFallbackHomePageData().latestJournal
-
-        return {
-            pageDescription: staticCopy.journals.pageDescription,
-            contentsDescription: staticCopy.journals.contentsDescription,
-            latestJournal: fallbackJournal,
-            journals: [fallbackJournal],
-        }
+        return null
     }
 }
 
@@ -977,9 +737,7 @@ export async function loadArticleStaticParams(): Promise<
             articleNumber,
         }))
     } catch {
-        return fallbackArticles.map((_, index) => ({
-            articleNumber: formatFallbackArticleNumber(index),
-        }))
+        return []
     }
 }
 
@@ -993,27 +751,27 @@ export async function loadJournalIssueStaticParams(): Promise<
             issue,
         }))
     } catch {
-        return [{ issue: FALLBACK_JOURNAL_ISSUE }]
+        return []
     }
 }
 
-export async function loadJournalEntryStaticParams(): Promise<
+export async function loadJournalEntryStaticParams(issue?: string): Promise<
     Array<{ issue: string; article: string }>
 > {
     try {
         const { journalResources } = await loadJournalResources()
+        const matchingResources = issue
+            ? journalResources.filter((resource) => resource.journal.issue === issue)
+            : journalResources
 
-        return journalResources.flatMap(({ journal, issueIndex }) =>
+        return matchingResources.flatMap(({ journal, issueIndex }) =>
             issueIndex.items.map((entry) => ({
                 issue: journal.issue,
                 article: entry.entryNumber,
             }))
         )
     } catch {
-        return FALLBACK_JOURNAL_ENTRY_POINTERS.map((entry) => ({
-            issue: FALLBACK_JOURNAL_ISSUE,
-            article: entry.entryNumber,
-        }))
+        return []
     }
 }
 
@@ -1053,7 +811,7 @@ export async function loadJournalIssuePageData(
             entries,
         }
     } catch {
-        return getFallbackJournalIssuePageData(issue)
+        return null
     }
 }
 
@@ -1098,473 +856,10 @@ export async function loadJournalIssueArticlePageData(
             journalArticlePdfViewerUrl: `${journalArticlePdfUrl}#page=1`,
         }
     } catch {
-        return getFallbackJournalIssueArticlePageData(issue, articleEntry)
+        return null
     }
 }
 
-function getFallbackArticlePageData(
-    articleNumber: string
-): ArticlePageData | null {
-    if (articleNumber === "26-01") {
-        return {
-            siteTitle: siteConfig.name,
-            article: {
-                id: "26-01",
-                articleNumber,
-                title: "Against clean restoration",
-                description:
-                    "A short argument for leaving visible damage, noise, and material history in the frame.",
-                abstract:
-                    "A short argument for leaving visible damage, noise, and material history in the frame.",
-                category: "Film Analysis",
-                href: `/articles/${articleNumber}`,
-                contentType: "markdown",
-                authors: ["Editorial Desk"],
-                publishDate: "2026-03-17",
-                tags: ["restoration", "materiality", "criticism"],
-                rawContentUrl: getContentRawUrl("articles/26-01/body.md"),
-                body: "# Against clean restoration\n\nVisible damage is sometimes part of the record. Scratches, instability, and noise can document the life of a print rather than merely interrupt it.",
-            },
-        }
-    }
-
-    if (articleNumber === "26-02") {
-        return {
-            siteTitle: siteConfig.name,
-            article: {
-                id: "26-02",
-                articleNumber,
-                title: "The corridor shot as student cinema theology",
-                description:
-                    "On why low-budget filmmakers keep returning to hallways, thresholds, and fluorescent suspense.",
-                abstract:
-                    "On why low-budget filmmakers keep returning to hallways, thresholds, and fluorescent suspense.",
-                category: "Student Film",
-                href: `/articles/${articleNumber}`,
-                contentType: "pdf",
-                authors: ["Editorial Desk"],
-                publishDate: "2026-03-18",
-                tags: ["student cinema", "space", "mise-en-scene"],
-                rawContentUrl: getContentRawUrl("articles/26-02/paper.pdf"),
-            },
-        }
-    }
-
-    if (articleNumber === "26-03") {
-        return {
-            siteTitle: siteConfig.name,
-            article: {
-                id: "26-03",
-                articleNumber,
-                title: "Viewing diary: five rainy screenings",
-                description:
-                    "Fragments on atmosphere, boredom, weather, and the accidental rhythms of programming.",
-                abstract:
-                    "Fragments on atmosphere, boredom, weather, and the accidental rhythms of programming.",
-                category: "Film Analysis",
-                href: `/articles/${articleNumber}`,
-                contentType: "markdown",
-                authors: ["Editorial Desk"],
-                publishDate: "2026-03-19",
-                tags: ["viewing diary", "programming", "criticism"],
-                rawContentUrl: getContentRawUrl("articles/26-03/body.md"),
-                body: "# Viewing diary: five rainy screenings\n\nRain changed the queue before it changed the film. Umbrellas arrived first, then damp coats, then the hush that makes a mediocre screening feel briefly necessary.",
-            },
-        }
-    }
-
-    if (articleNumber === "26-04") {
-        return {
-            siteTitle: siteConfig.name,
-            article: {
-                id: "26-04",
-                articleNumber,
-                title: "The tripod as moral problem in the first-year short",
-                description:
-                    "A note on why static framing in student productions often signals anxiety rather than control.",
-                abstract:
-                    "A note on why static framing in student productions often signals anxiety rather than control.",
-                category: "Student Film",
-                href: `/articles/${articleNumber}`,
-                contentType: "markdown",
-                authors: ["Editorial Desk"],
-                publishDate: "2026-03-20",
-                tags: ["student film", "framing", "pedagogy"],
-                rawContentUrl: getContentRawUrl("articles/26-04/body.md"),
-                body: "# The tripod as moral problem in the first-year short\n\nMany early films confuse stillness with seriousness. The locked frame becomes less an aesthetic decision than a promise not to make a visible mistake.",
-            },
-        }
-    }
-
-    if (articleNumber === "26-05") {
-        return {
-            siteTitle: siteConfig.name,
-            article: {
-                id: "26-05",
-                articleNumber,
-                title: "Cafeteria realism and the mid-budget campus feature",
-                description:
-                    "How institutional interiors become an accidental style in films made with borrowed locations.",
-                abstract:
-                    "How institutional interiors become an accidental style in films made with borrowed locations.",
-                category: "Student Film",
-                href: `/articles/${articleNumber}`,
-                contentType: "markdown",
-                authors: ["Editorial Desk"],
-                publishDate: "2026-03-21",
-                tags: ["student film", "location", "production design"],
-                rawContentUrl: getContentRawUrl("articles/26-05/body.md"),
-                body: "# Cafeteria realism and the mid-budget campus feature\n\nThe cafeteria appears not because it is symbolically dense, but because it is available, fluorescent, and already blocked for movement. The resulting realism is logistical before it is artistic.",
-            },
-        }
-    }
-
-    if (articleNumber === "26-06") {
-        return {
-            siteTitle: siteConfig.name,
-            article: {
-                id: "26-06",
-                articleNumber,
-                title: "Why the rehearsal take sometimes belongs in the final cut",
-                description:
-                    "On rough delivery, unfinished timing, and the documentary pressure of performance before polish.",
-                abstract:
-                    "On rough delivery, unfinished timing, and the documentary pressure of performance before polish.",
-                category: "Student Film",
-                href: `/articles/${articleNumber}`,
-                contentType: "markdown",
-                authors: ["Editorial Desk"],
-                publishDate: "2026-03-22",
-                tags: ["performance", "student film", "editing"],
-                rawContentUrl: getContentRawUrl("articles/26-06/body.md"),
-                body: "# Why the rehearsal take sometimes belongs in the final cut\n\nA rehearsal take can retain the uncertainty that later, cleaner performances lose. What looks unfinished may in fact be the most legible record of risk.",
-            },
-        }
-    }
-
-    if (articleNumber === "26-07") {
-        return {
-            siteTitle: siteConfig.name,
-            article: {
-                id: "26-07",
-                articleNumber,
-                title: "Projection booth notes after the late campus screening",
-                description:
-                    "A small record of lamp heat, misthreading, and the strange authority of whoever stays after the audience leaves.",
-                abstract:
-                    "A small record of lamp heat, misthreading, and the strange authority of whoever stays after the audience leaves.",
-                category: "Exhibition Notes",
-                href: `/articles/${articleNumber}`,
-                contentType: "markdown",
-                authors: ["Editorial Desk"],
-                publishDate: "2026-03-23",
-                tags: ["exhibition", "projection", "campus screening"],
-                rawContentUrl: getContentRawUrl("articles/26-07/body.md"),
-                body: "# Projection booth notes after the late campus screening\n\nThe booth acquires authority only after the audience leaves. During projection it is merely technical; afterward it becomes interpretive, full of explanations for dust, scratches, timing, and near-failure.",
-            },
-        }
-    }
-
-    if (articleNumber === "26-08") {
-        return {
-            siteTitle: siteConfig.name,
-            article: {
-                id: "26-08",
-                articleNumber,
-                title: "Hiss, room tone, and the ethics of cleaned dialogue",
-                description:
-                    "Why over-cleaned student audio can erase the environment that made a scene believable in the first place.",
-                abstract:
-                    "Why over-cleaned student audio can erase the environment that made a scene believable in the first place.",
-                category: "Sound Studies",
-                href: `/articles/${articleNumber}`,
-                contentType: "markdown",
-                authors: ["Editorial Desk"],
-                publishDate: "2026-03-24",
-                tags: ["sound", "dialogue", "post-production"],
-                rawContentUrl: getContentRawUrl("articles/26-08/body.md"),
-                body: "# Hiss, room tone, and the ethics of cleaned dialogue\n\nNoise reduction often removes the room before it removes the problem. The resulting speech may be more intelligible, but it can become curiously unplaced, as if spoken nowhere.",
-            },
-        }
-    }
-
-    if (articleNumber === "26-09") {
-        return {
-            siteTitle: siteConfig.name,
-            article: {
-                id: "26-09",
-                articleNumber,
-                title: "Box labels, mildew, and the politics of minor preservation",
-                description:
-                    "On handwritten tape labels, damp shelving, and the practical labour behind keeping non-canonical film culture legible.",
-                abstract:
-                    "On handwritten tape labels, damp shelving, and the practical labour behind keeping non-canonical film culture legible.",
-                category: "Archive Notes",
-                href: `/articles/${articleNumber}`,
-                contentType: "markdown",
-                authors: ["Editorial Desk"],
-                publishDate: "2026-03-25",
-                tags: ["archive", "preservation", "labour"],
-                rawContentUrl: getContentRawUrl("articles/26-09/body.md"),
-                body: "# Box labels, mildew, and the politics of minor preservation\n\nMinor archives survive through maintenance rather than prestige. A clear label, a dry shelf, and a volunteer who remembers where the tape was moved can matter more than institutional grandeur.",
-            },
-        }
-    }
-
-    if (articleNumber === "26-10") {
-        return {
-            siteTitle: siteConfig.name,
-            article: {
-                id: "26-10",
-                articleNumber,
-                title: "Festival mornings and the first-badge feature",
-                description:
-                    "A note on exhausted premieres, apologetic Q-and-As, and the ambition that clings to low-budget debuts.",
-                abstract:
-                    "A note on exhausted premieres, apologetic Q-and-As, and the ambition that clings to low-budget debuts.",
-                category: "Festival Notes",
-                href: `/articles/${articleNumber}`,
-                contentType: "markdown",
-                authors: ["Editorial Desk"],
-                publishDate: "2026-03-26",
-                tags: ["festival", "debuts", "reception"],
-                rawContentUrl: getContentRawUrl("articles/26-10/body.md"),
-                body: "# Festival mornings and the first-badge feature\n\nMorning festival slots can feel punitive, yet they also reveal which films can survive without hype. A debut shown to a tired room often discloses its structure more honestly than an evening premiere.",
-            },
-        }
-    }
-
-    if (articleNumber === "26-11") {
-        return {
-            siteTitle: siteConfig.name,
-            article: {
-                id: "26-11",
-                articleNumber,
-                title: "Camcorder sunsets and the family film as accidental cinema",
-                description:
-                    "How domestic recordings turn weather, waiting, and repetition into forms of unplanned style.",
-                abstract:
-                    "How domestic recordings turn weather, waiting, and repetition into forms of unplanned style.",
-                category: "Amateur Media",
-                href: `/articles/${articleNumber}`,
-                contentType: "markdown",
-                authors: ["Editorial Desk"],
-                publishDate: "2026-03-27",
-                tags: ["amateur media", "camcorder", "domestic image"],
-                rawContentUrl: getContentRawUrl("articles/26-11/body.md"),
-                body: "# Camcorder sunsets and the family film as accidental cinema\n\nThe family video keeps filming long after the event has technically ended. In that surplus duration, weather and hesitation become the real subject.",
-            },
-        }
-    }
-
-    if (articleNumber === "26-12") {
-        return {
-            siteTitle: siteConfig.name,
-            article: {
-                id: "26-12",
-                articleNumber,
-                title: "When the actor outruns the frame",
-                description:
-                    "A short piece on performances that exceed the camera setup built to contain them.",
-                abstract:
-                    "A short piece on performances that exceed the camera setup built to contain them.",
-                category: "Performance",
-                href: `/articles/${articleNumber}`,
-                contentType: "markdown",
-                authors: ["Editorial Desk"],
-                publishDate: "2026-03-28",
-                tags: ["performance", "framing", "blocking"],
-                rawContentUrl: getContentRawUrl("articles/26-12/body.md"),
-                body: "# When the actor outruns the frame\n\nSome performances expose the poverty of a setup by moving faster than the shot was designed to think. The result is not merely bad coverage; it is a mismatch between energy and form.",
-            },
-        }
-    }
-
-    if (articleNumber === "26-13") {
-        return {
-            siteTitle: siteConfig.name,
-            article: {
-                id: "26-13",
-                articleNumber,
-                title: "Notebook from the under-attended weekday screening",
-                description:
-                    "Sparse attendance, loud radiators, and the peculiar intimacy of watching a film with six strangers.",
-                abstract:
-                    "Sparse attendance, loud radiators, and the peculiar intimacy of watching a film with six strangers.",
-                category: "Screening Reports",
-                href: `/articles/${articleNumber}`,
-                contentType: "markdown",
-                authors: ["Editorial Desk"],
-                publishDate: "2026-03-29",
-                tags: ["screening", "audience", "notebook"],
-                rawContentUrl: getContentRawUrl("articles/26-13/body.md"),
-                body: "# Notebook from the under-attended weekday screening\n\nLow attendance changes the ethics of spectatorship. Every cough enters the mix, and the social embarrassment of leaving early becomes part of the evening's form.",
-            },
-        }
-    }
-
-    if (articleNumber === "26-14") {
-        return {
-            siteTitle: siteConfig.name,
-            article: {
-                id: "26-14",
-                articleNumber,
-                title: "Video essay without voiceover: a note on arrangement",
-                description:
-                    "What happens when critical montage has to think through cuts, rhythm, and juxtaposition instead of explanatory speech.",
-                abstract:
-                    "What happens when critical montage has to think through cuts, rhythm, and juxtaposition instead of explanatory speech.",
-                category: "Video Essay",
-                href: `/articles/${articleNumber}`,
-                contentType: "markdown",
-                authors: ["Editorial Desk"],
-                publishDate: "2026-03-30",
-                tags: ["video essay", "montage", "form"],
-                rawContentUrl: getContentRawUrl("articles/26-14/body.md"),
-                body: "# Video essay without voiceover: a note on arrangement\n\nWithout narration, criticism has to migrate into sequencing. The argument is no longer said over the image; it emerges from the pressure one clip places on the next.",
-            },
-        }
-    }
-
-    if (articleNumber === "26-15") {
-        return {
-            siteTitle: siteConfig.name,
-            article: {
-                id: "26-15",
-                articleNumber,
-                title: "After the projector jam: notes from an interrupted matinee",
-                description:
-                    "A small account of delay, apology, and the audience behaviour that emerges when a screening briefly stops being a screening.",
-                abstract:
-                    "A small account of delay, apology, and the audience behaviour that emerges when a screening briefly stops being a screening.",
-                category: "Exhibition Notes",
-                href: `/articles/${articleNumber}`,
-                contentType: "markdown",
-                authors: ["Editorial Desk"],
-                publishDate: "2026-03-31",
-                tags: ["exhibition", "audience", "projection"],
-                rawContentUrl: getContentRawUrl("articles/26-15/body.md"),
-                body: "# After the projector jam: notes from an interrupted matinee\n\nThe interruption changed the audience before it changed the screening. People began by looking at the booth, then at each other, and only later back toward the blank screen.\n\nFor a few minutes the event became social in a different register. The room was no longer organised by the film alone, but by the shared embarrassment of waiting politely for machinery to recover.",
-            },
-        }
-    }
-
-    if (articleNumber === "26-16") {
-        return {
-            siteTitle: siteConfig.name,
-            article: {
-                id: "26-16",
-                articleNumber,
-                title: "Lav mic rustle and the fantasy of invisible recording",
-                description:
-                    "On clothing noise, close bodies, and the way low-budget dialogue recording reveals more proximity than the image does.",
-                abstract:
-                    "On clothing noise, close bodies, and the way low-budget dialogue recording reveals more proximity than the image does.",
-                category: "Sound Studies",
-                href: `/articles/${articleNumber}`,
-                contentType: "pdf",
-                authors: ["Editorial Desk"],
-                publishDate: "2026-04-01",
-                tags: ["sound", "dialogue", "recording"],
-                rawContentUrl: getContentRawUrl("articles/26-16/paper.pdf"),
-            },
-        }
-    }
-
-    if (articleNumber === "26-17") {
-        return {
-            siteTitle: siteConfig.name,
-            article: {
-                id: "26-17",
-                articleNumber,
-                title: "Festival catalogue adjectives and the language of minor prestige",
-                description:
-                    "A reading of how small festivals describe difficult films when they want seriousness without scaring off the audience.",
-                abstract:
-                    "A reading of how small festivals describe difficult films when they want seriousness without scaring off the audience.",
-                category: "Festival Notes",
-                href: `/articles/${articleNumber}`,
-                contentType: "markdown",
-                authors: ["Editorial Desk"],
-                publishDate: "2026-04-02",
-                tags: ["festival", "language", "reception"],
-                rawContentUrl: getContentRawUrl("articles/26-17/body.md"),
-                body: "# Festival catalogue adjectives and the language of minor prestige\n\nFestival writing often wants to sound selective without sounding forbidding. It therefore leans on a familiar vocabulary of rigour, intimacy, and urgency.\n\nThese adjectives do not merely describe films. They also position the festival itself as tasteful, attentive, and slightly braver than the market surrounding it.",
-            },
-        }
-    }
-
-    if (articleNumber === "26-18") {
-        return {
-            siteTitle: siteConfig.name,
-            article: {
-                id: "26-18",
-                articleNumber,
-                title: "Second screening notebook: ten people, one broken subtitle file",
-                description:
-                    "A brief record of awkward pauses, improvised translation, and the collective patience of a room that chooses to stay.",
-                abstract:
-                    "A brief record of awkward pauses, improvised translation, and the collective patience of a room that chooses to stay.",
-                category: "Screening Reports",
-                href: `/articles/${articleNumber}`,
-                contentType: "markdown",
-                authors: ["Editorial Desk"],
-                publishDate: "2026-04-03",
-                tags: ["screening", "subtitles", "audience"],
-                rawContentUrl: getContentRawUrl("articles/26-18/body.md"),
-                body: "# Second screening notebook: ten people, one broken subtitle file\n\nOnce the subtitles failed, the audience began reading each other instead. Shrugs, whispered summaries, and half-remembered vocabulary replaced the official text.\n\nWhat followed was less accessible and oddly more communal. The screening survived because the room agreed, without saying so, to do some of the work itself.",
-            },
-        }
-    }
-
-    if (articleNumber === "26-19") {
-        return {
-            siteTitle: siteConfig.name,
-            article: {
-                id: "26-19",
-                articleNumber,
-                title: "MiniDV birthdays and the accidental theory of zooming in too late",
-                description:
-                    "How domestic camera mistakes become a style of lateness, hesitation, and emotional correction.",
-                abstract:
-                    "How domestic camera mistakes become a style of lateness, hesitation, and emotional correction.",
-                category: "Amateur Media",
-                href: `/articles/${articleNumber}`,
-                contentType: "markdown",
-                authors: ["Editorial Desk"],
-                publishDate: "2026-04-04",
-                tags: ["amateur media", "MiniDV", "domestic image"],
-                rawContentUrl: getContentRawUrl("articles/26-19/body.md"),
-                body: "# MiniDV birthdays and the accidental theory of zooming in too late\n\nThe late zoom is one of the home video camera's most revealing mistakes. It shows recognition happening after the moment has already begun to pass.\n\nWhat looks clumsy is also a record of care catching up with itself. The operator notices emotion slightly too late, and the image hurries to compensate.",
-            },
-        }
-    }
-
-    if (articleNumber === "26-20") {
-        return {
-            siteTitle: siteConfig.name,
-            article: {
-                id: "26-20",
-                articleNumber,
-                title: "Fog machine notes for the impossible warehouse scene",
-                description:
-                    "On borrowed industrial space, cheap atmosphere, and the technical labour required to make thin resources look deliberate.",
-                abstract:
-                    "On borrowed industrial space, cheap atmosphere, and the technical labour required to make thin resources look deliberate.",
-                category: "Production Notes",
-                href: `/articles/${articleNumber}`,
-                contentType: "markdown",
-                authors: ["Editorial Desk"],
-                publishDate: "2026-04-05",
-                tags: ["production", "atmosphere", "low-budget"],
-                rawContentUrl: getContentRawUrl("articles/26-20/body.md"),
-                body: "# Fog machine notes for the impossible warehouse scene\n\nAtmosphere is often cheaper than architecture. A warehouse becomes cinematic not by being transformed completely, but by being partially obscured.\n\nThe fog machine therefore does technical and ideological work at once. It hides shortage while advertising intention, letting low-budget production masquerade as visual conviction.",
-            },
-        }
-    }
-
-    return null
-}
 
 export async function loadArticlePageData(
     articleNumber: string
@@ -1612,7 +907,7 @@ export async function loadArticlePageData(
             },
         }
     } catch {
-        return getFallbackArticlePageData(articleNumber)
+        return null
     }
 }
 
@@ -1626,6 +921,6 @@ export async function loadArticleNotFoundPageData(): Promise<ArticleNotFoundPage
         recommendationsTitle: staticCopy.articles.notFound.recommendationsTitle,
         recommendationsDescription:
             staticCopy.articles.notFound.recommendationsDescription,
-        recommendedArticles: articlesPageData.hottestArticles.slice(0, 3),
+        recommendedArticles: articlesPageData?.hottestArticles.slice(0, 3) ?? [],
     }
 }

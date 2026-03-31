@@ -16,8 +16,16 @@ import {
     loadJournalEntryStaticParams,
     loadJournalIssueArticlePageData,
 } from "@/lib/content-loader"
-export async function generateStaticParams() {
-    return loadJournalEntryStaticParams()
+
+export const dynamicParams = false
+
+export async function generateStaticParams({
+    params,
+}: {
+    params: { issue: string; article: string }
+}) {
+    const { issue } = params
+    return loadJournalEntryStaticParams(issue)
 }
 
 type JournalIssueArticlePageProps = {

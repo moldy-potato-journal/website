@@ -19,6 +19,8 @@ import {
     loadArticleStaticParams,
 } from "@/lib/content-loader"
 
+export const dynamicParams = false
+
 export async function generateStaticParams() {
     return loadArticleStaticParams()
 }
