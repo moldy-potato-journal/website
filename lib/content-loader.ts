@@ -755,13 +755,15 @@ export async function loadJournalIssueStaticParams(): Promise<
     }
 }
 
-export async function loadJournalEntryStaticParams(issue?: string): Promise<
-    Array<{ issue: string; article: string }>
-> {
+export async function loadJournalEntryStaticParams(
+    issue?: string
+): Promise<Array<{ issue: string; article: string }>> {
     try {
         const { journalResources } = await loadJournalResources()
         const matchingResources = issue
-            ? journalResources.filter((resource) => resource.journal.issue === issue)
+            ? journalResources.filter(
+                  (resource) => resource.journal.issue === issue
+              )
             : journalResources
 
         return matchingResources.flatMap(({ journal, issueIndex }) =>
@@ -860,7 +862,6 @@ export async function loadJournalIssueArticlePageData(
     }
 }
 
-
 export async function loadArticlePageData(
     articleNumber: string
 ): Promise<ArticlePageData | null> {
@@ -921,6 +922,7 @@ export async function loadArticleNotFoundPageData(): Promise<ArticleNotFoundPage
         recommendationsTitle: staticCopy.articles.notFound.recommendationsTitle,
         recommendationsDescription:
             staticCopy.articles.notFound.recommendationsDescription,
-        recommendedArticles: articlesPageData?.hottestArticles.slice(0, 3) ?? [],
+        recommendedArticles:
+            articlesPageData?.hottestArticles.slice(0, 3) ?? [],
     }
 }

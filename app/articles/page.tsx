@@ -26,7 +26,9 @@ export default async function ArticlesPage() {
                 />
                 {articlesPageData ? (
                     <Suspense fallback={null}>
-                        <ArticlesPageContent articlesPageData={articlesPageData} />
+                        <ArticlesPageContent
+                            articlesPageData={articlesPageData}
+                        />
                     </Suspense>
                 ) : (
                     <NoContentState description="Standalone article content could not be loaded from the configured source." />

@@ -12,9 +12,7 @@ import {
     CardFooter,
     CardHeader,
 } from "@/components/ui/card"
-import {
-    loadJournalIssueArticlePageData,
-} from "@/lib/content-loader"
+import { loadJournalIssueArticlePageData } from "@/lib/content-loader"
 
 type JournalIssueArticlePageProps = {
     params: Promise<{

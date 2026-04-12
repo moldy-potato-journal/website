@@ -41,7 +41,9 @@ export default async function Page() {
                         />
                         <ArticlesSection
                             title={homePageData.articlesSection.title}
-                            description={homePageData.articlesSection.description}
+                            description={
+                                homePageData.articlesSection.description
+                            }
                             articles={homePageData.articles}
                         />
                     </>
