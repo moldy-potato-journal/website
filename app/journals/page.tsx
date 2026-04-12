@@ -41,7 +41,9 @@ export default async function JournalsPage() {
                             />
                         ) : null}
 
-                        <JournalArchiveGrid journals={journalsPageData.journals} />
+                        <JournalArchiveGrid
+                            journals={journalsPageData.journals}
+                        />
                     </>
                 ) : (
                     <NoContentState description="Journal issue content could not be loaded from the configured source." />
